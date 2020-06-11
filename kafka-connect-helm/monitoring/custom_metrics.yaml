@@ -1,0 +1,97 @@
+instances:
+  - jmx_url: service:jmx:rmi:///jndi/rmi://%%host%%:9999/jmxrmi
+    name: {{ include "kafka-connect-helm.fullname" . }}
+    tags:
+    - kafka:connect
+    - env:{{ .Values.ENV }}
+    - app:{{ include "kafka-connect-helm.fullname" . }}
+logs:
+  - type: file
+    path: /var/log/kafka/server.log
+    source: kafka
+    sourcecategory: connect
+    service: {{ include "kafka-connect-helm.fullname" . }}
+    tags:
+    - env:{{ .Values.ENV }}
+    # REGEX has to match pattern in FILE not in CONSOLE
+    # The pattern used for FILE and CONSOLE may be different!!!
+    log_processing_rules:
+    - type: exclude_at_match
+      name: exclude_noise_for_committing_offsets
+      pattern: Committing offsets
+    - type: exclude_at_match
+      name: exclude_noise_for_empty_flushing
+      pattern: flushing 0 outstanding messages for offset commit
+    - type: multi_line
+      name: new_log_start_with_date
+      pattern: \d{4}\-(0?[1-9]|1[012])\-(0?[1-9]|[12][0-9]|3[01])\s\d{2}:\d{2}:\d{2}
+init_config:
+  is_jmx: true
+  collect_default_metrics: false
+  conf:
+    - include:
+        bean_regex: kafka.producer:type=producer-metrics,client-id=([-.\w]+)
+        attribute:
+          - record-send-rate
+          - incoming-byte-rate
+          - outgoing-byte-rate
+          - request-rate
+          - response-rate
+          - io-ratio
+          - io-wait-ratio
+    - include:
+        bean: kafka.connect:type=connect-worker-metrics
+        attribute:
+        - connector-count
+        - connector-startup-failure-total
+        - task-count
+        - task-startup-attempts-total
+        - task-startup-failure-total
+    - include:
+        bean: kafka.connect:type=connect-worker-rebalance-metrics
+        attribute:
+        - completed-rebalances-total
+        - rebalance-avg-time-ms
+        - time-since-last-rebalance-ms
+    - include:
+        bean_regex: kafka.connect:type=connector-metrics,connector=([-.\w]+)
+        attribute:
+          status:
+            metric_type: gauge
+            values:
+              running: 1
+            alias: jmx.kafka.connect.status_connector
+    - include:
+        bean_regex: kafka.connect:type=connector-task-metrics,connector=([-.\w]+),task=([\d]+)
+        attribute:
+        - batch-size-avg
+        - offset-commit-avg-time-ms
+        - offset-commit-failure-percentage
+        - running-ratio
+    - include:
+        bean_regex: kafka.connect:type=connector-task-metrics,connector=([-.\w]+),task=([\d]+)
+        attribute:
+          status:
+            metric_type: gauge
+            values:
+              running: 1
+            alias: jmx.kafka.connect.status_task
+    - include:
+        bean_regex: kafka.connect:type=sink-task-metrics,connector=([-.\w]+),task=([\d]+)
+        attribute:
+        - offset-commit-completion-rate
+        - offset-commit-seq-no
+        - offset-commit-skip-rate
+        - partition-count
+        - put-batch-avg-time-ms
+        - sink-record-active-count-avg
+        - sink-record-read-rate
+        - sink-record-send-rate
+    - include:
+        bean_regex: kafka.connect:type=task-error-metrics,connector=([-.\w]+),task=([\d]+)
+        attribute:
+        - total-errors-logged
+        - total-record-errors
+        - total-record-failures
+        - total-records-skipped
+        - total-retries

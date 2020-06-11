@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "kafka-connect-helm.fullname" . }}-configmap
+data:
+  custom_metrics.yaml: |-
+{{ tpl (.Files.Get "monitoring/custom_metrics.yaml") . | printf "%s" | indent 4}}
+  configloader.py: |-
+{{ tpl (.Files.Get "tools/configloader.py") . | printf "%s" | indent 4}}
+  taskchecker.py: |-
+{{ tpl (.Files.Get "tools/taskchecker.py") . | printf "%s" | indent 4}}

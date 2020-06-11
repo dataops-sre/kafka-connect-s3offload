@@ -1,0 +1,57 @@
+# Default values for kafka-stream-helm.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+ENV: stg
+replicaCount: 1
+service:
+  type: ClusterIP
+KAFKA_BROKERS: broker:9092
+SCHEMA_REGISTRY_URL: http://kafka-schema-registry:8081
+ZOOKEEPERS: zookeeper:2181
+kafka_connect:
+  image:
+    pullPolicy: IfNotPresent
+  CONNECT_GROUP_ID: kafka-to-s3
+  CONNECT_INTERNAL_KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+  CONNECT_INTERNAL_VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+  CONNECT_KEY_CONVERTER: io.confluent.connect.avro.AvroConverter
+  CONNECT_VALUE_CONVERTER: io.confluent.connect.avro.AvroConverter
+  CONNECT_REST_PORT: "8083"
+  CONNECT_LOG4J_LOGGERS: org.reflections=INFO
+  CONNECT_LOG4J_ROOT_LOGLEVEL: INFO
+  CONNECT_TOOLS_LOG4J_LOGLEVEL: INFO
+  CONNECT_IAM_ROLE: arn:aws:iam::account_number:stg-role
+  #Java/KAFKA options
+  KAFKA_JMX_PORT: '9999'
+  KAFKA_HEAP_OPTS: "-XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap"
+taskchecker:
+  DATADOG_HOST: datadogstatsd.monitoring
+configloader:
+  CONNECTOR_UNIQUE_NAME: "kafka-to-s3-${ENV}"
+  CONNECTOR_CONFIG_JSON: |
+    {
+       "connector.class":"io.confluent.connect.s3.S3SinkConnector",
+       "tasks.max":"1",
+       "topics":"kafka-topic",
+       "s3.region":"eu-west-1",
+       "s3.bucket.name":"stg-s3-bucket",
+       "topics.dir": "raw/offload-destination",
+       "s3.part.size":"5242880",
+       "s3.compression.type":"gzip",
+       "flush.size": "30000",
+       "rotate.schedule.interval.ms":"7200000",
+       "storage.class":"io.confluent.connect.s3.storage.S3Storage",
+       "format.class":"io.confluent.connect.s3.format.json.JsonFormat",
+       "partitioner.class":"io.confluent.connect.storage.partitioner.TimeBasedPartitioner",
+       "path.format": "'tstamp_day'=YYYY-MM-dd",
+       "partition.duration.ms":"86400000",
+       "locale":"en-US",
+       "timezone": "UTC",
+       "timestamp.extractor": "RecordField",
+       "timestamp.field": "derived_tstamp",
+       "transforms": "TimestampConverter",
+       "transforms.TimestampConverter.type": "org.apache.kafka.connect.transforms.TimestampConverter$Value",
+       "transforms.TimestampConverter.field": "derived_tstamp",
+       "transforms.TimestampConverter.format": "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+       "transforms.TimestampConverter.target.type": "string"
+    }

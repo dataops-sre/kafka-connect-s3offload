@@ -1,0 +1,135 @@
+# local, dev, stg, prod
+stages:
+- deploy
+- deploy-prod
+- clean
+
+# -------------------------------------------------------
+# -- templates
+# -------------------------------------------------------
+.image_template: &image_definition
+  image: gitlab-runner-image:tag
+
+.tag_template_dev: &tag_definition_team_runner_dev
+  tags:
+    - dev-runner-tag
+
+.tag_template_prod: &tag_definition_team_runner_prod
+  tags:
+    - prod-runner-tag
+
+.dev_template: &dev_environment
+  variables:
+    ENV: "dev"
+    IAM_ROLE: arn:aws:iam::account_number:dev-role
+  environment:
+    name: dev
+  except:
+    - master
+
+.stg_template: &stg_environment
+  variables:
+    ENV: "stg"
+    IAM_ROLE: arn:aws:iam::account_number:stg-role
+  environment:
+    name: stg
+  only:
+    - master
+
+.prod_template: &prod_environment
+  variables:
+    ENV: "prod"
+    IAM_ROLE: arn:aws:iam::account_number:prod-role
+  environment:
+    name: prod
+  only:
+    - master
+
+.deploy_template: &deploy_job
+  stage: deploy
+  script:
+  - task build
+  - task helm.deploy
+
+.undeploy_template: &undeploy_job
+  stage: clean
+  script:
+  - task helm.undeploy
+
+.rollback_template: &rollback_job
+  stage: clean
+  script:
+  - task helm.rollback
+
+# -------------------------------------------------------
+# -- deploy
+# -------------------------------------------------------
+
+deploy-dev:
+  <<: *image_definition
+  <<: *dev_environment
+  <<: *deploy_job
+  <<: *tag_definition_team_runner_dev
+
+deploy-stg:
+  <<: *image_definition
+  <<: *stg_environment
+  <<: *deploy_job
+  <<: *tag_definition_team_runner_dev
+
+deploy-prod:
+  <<: *image_definition
+  <<: *prod_environment
+  <<: *deploy_job
+  <<: *tag_definition_team_runner_prod
+  stage: deploy-prod
+
+# -------------------------------------------------------
+# -- undeploy
+# -------------------------------------------------------
+
+undeploy-dev:
+  <<: *image_definition
+  <<: *dev_environment
+  <<: *undeploy_job
+  <<: *tag_definition_team_runner_dev
+  when: manual
+
+undeploy-stg:
+  <<: *image_definition
+  <<: *stg_environment
+  <<: *undeploy_job
+  <<: *tag_definition_team_runner_dev
+  when: manual
+
+undeploy-prod:
+  <<: *image_definition
+  <<: *prod_environment
+  <<: *undeploy_job
+  <<: *tag_definition_team_runner_prod
+  when: manual
+
+# -------------------------------------------------------
+# -- rollback
+# -------------------------------------------------------
+
+rollback-dev:
+  <<: *image_definition
+  <<: *dev_environment
+  <<: *rollback_job
+  <<: *tag_definition_team_runner_dev
+  when: manual
+
+rollback-stg:
+  <<: *image_definition
+  <<: *stg_environment
+  <<: *rollback_job
+  <<: *tag_definition_team_runner_dev
+  when: manual
+
+rollback-prod:
+  <<: *image_definition
+  <<: *prod_environment
+  <<: *rollback_job
+  <<: *tag_definition_team_runner_prod
+  when: manual

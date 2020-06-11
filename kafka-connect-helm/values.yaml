@@ -1,0 +1,38 @@
+ENV: local
+replicaCount: 1
+service:
+  type: ClusterIP
+KAFKA_BROKERS: broker:9092
+SCHEMA_REGISTRY_URL: http://kafka-schema-registry:8081
+ZOOKEEPERS: zookeeper:2181
+kafka_connect:
+  image:
+    pullPolicy: IfNotPresent
+  CONNECT_GROUP_ID: kafka-to-s3
+  CONNECT_INTERNAL_KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+  CONNECT_INTERNAL_VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+  CONNECT_KEY_CONVERTER: io.confluent.connect.avro.AvroConverter
+  CONNECT_VALUE_CONVERTER: io.confluent.connect.avro.AvroConverter
+  CONNECT_REST_PORT: "8083"
+  CONNECT_OFFSET_STORAGE_TOPIC: kafka-to-s3-offset
+  CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: '1'
+  CONNECT_CONFIG_STORAGE_TOPIC: kafka-to-s3-config
+  CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: '1'
+  CONNECT_STATUS_STORAGE_TOPIC: kafka-to-s3-status
+  CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: '1'
+  CONNECT_LOG4J_LOGGERS: org.reflections=INFO
+  CONNECT_LOG4J_ROOT_LOGLEVEL: INFO
+  CONNECT_TOOLS_LOG4J_LOGLEVEL: INFO
+  #Java/KAFKA options
+  KAFKA_JMX_PORT: '9999'
+  KAFKA_HEAP_OPTS: "-Xms256m -Xmx512m"
+  CONNECT_IAM_ROLE: arn:aws:iam::account_number:dev-role
+taskchecker:
+  DATADOG_HOST: datadogstatsd
+configloader:
+  CONNECTOR_UNIQUE_NAME: "kafka-to-s3-${ENV}"
+  CONNECTOR_CONFIG_JSON: |
+    {
+    }
+datadog:
+  enabled: true
